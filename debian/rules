@@ -1,0 +1,38 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+CFLAGS:=	$(shell dpkg-buildflags --get CFLAGS)
+CPPFLAGS:=	$(shell dpkg-buildflags --get CPPFLAGS)
+LDFLAGS:=	$(shell dpkg-buildflags --get LDFLAGS)
+
+ifneq (,$(filter werror,$(DEB_BUILD_OPTIONS)))
+EXTRACFLAGS+=	-Werror
+endif
+
+LDFLAGS+=	-Wl,-z,defs -Wl,--as-needed
+
+include /usr/share/hardening-includes/hardening.make
+ifeq (,$(filter nohardening,$(DEB_BUILD_OPTIONS)))
+EXTRACFLAGS+=	$(HARDENING_CFLAGS)
+LDFLAGS+=	$(HARDENING_LDFLAGS)
+endif
+
+export CPPFLAGS CFLAGS EXTRACFLAGS LDFLAGS
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		--bindir=\$${prefix}/games \
+		--datadir=\$${prefix}/share/games \
+		--with-gmp
+
+override_dh_auto_test:
+
+override_dh_auto_install:
+	dh_auto_install -- prefix=/usr
+	chmod -x $(CURDIR)/debian/netrek-client-cow/usr/share/games/netrek-client-cow/key.cow.linux
+
+%:
+	dh $@ --with autotools_dev

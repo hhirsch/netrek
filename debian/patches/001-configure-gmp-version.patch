@@ -1,0 +1,19 @@
+Description: Recognize GMP versions other than 1.
+Bug-Debian: http://bugs.debian.org/620528
+Forwarded: no
+Author: Peter Pentchev <roam@ringlet.net>
+Last-Update: 2011-04-08
+
+Index: b/configure
+===================================================================
+--- a/configure
++++ b/configure
+@@ -7194,7 +7194,7 @@
+ 
+ _ACEOF
+ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
+-  $EGREP ""gmp=.*2"" >/dev/null 2>&1; then
++  $EGREP ""gmp=.*[02-9]"" >/dev/null 2>&1; then
+   cat >>confdefs.h <<\_ACEOF
+ #define HAVE_GMP2_H 1
+ _ACEOF

@@ -1,0 +1,284 @@
+Description: Fix some build hardening warnings.
+ - turn some printf() format strings into preprocessor constants
+ - add some "%s" printf() format strings
+ - check the return values of fread(), fwrite() and system()
+ - convert some uses of sprintf() into snprintf()
+Forwarded: no
+Author: Peter Pentchev <roam@ringlet.net>
+Last-Update: 2011-05-11
+
+--- a/mkkey.c
++++ b/mkkey.c
+@@ -552,7 +552,7 @@
+     fprintf(fp, "    }\n");
+ }
+ 
+-static char* rsa_box_defs = "\
++#define rsa_box_defs "\
+ #define X(m, r, g) \\\n\
+     mpz_mul(r, m, r);\\\n\
+     mpz_mod(r, r, g)\n\
+@@ -565,9 +565,9 @@
+         tmp = m[i]; m[i] = m[j]; m[j] = tmp; \\\n\
+         tmp = r[i]; r[i] = r[j]; r[j] = tmp; \\\n\
+     } while(0)\n\
+-";
++"
+ 
+-static char* sequence_header = "\
++#define sequence_header "\
+ {\n\
+     MP_INT r[%d], m[%d], m_swap_tmp;\n\
+     for (i = 0; i < %d; i++) {\n\
+@@ -575,29 +575,29 @@
+     }\n\
+     mpz_set(&m[%d], &m_msg);\n\
+ #define g &m_global\n\
+-";
++"
+ 
+-static char* sequence_trailer = "\
++#define sequence_trailer "\
+ \n\
+     mpz_set(&m_result, &r[%d]);\n\
+     for (i = 0; i < %d; i++) {\n\
+         mpz_clear(&r[i]); mpz_clear(&m[i]);\n\
+     }\n\
+ }\n\
+-";
++"
+ 
+-static char* per_box_header = "\
++#define per_box_header "\
+ #include \"config.h\"\n\
+ #include <gmp.h>\n\
+ void rsa_partial_box_%d(m, r, g)\n\
+ MP_INT* m, * r;\n\
+ MP_INT* g;\n\
+ {\n\
+-";
++"
+ 
+-static char* per_box_trailer = "\
++#define per_box_trailer "\
+ }\n\
+-";
++"
+ 
+ /*
+  * Write out an obfuscated rsa computation.  This code is a little
+@@ -1050,7 +1050,10 @@
+ 	}
+ 	buffer = (char*) malloc(statbuf.st_size);
+ 	assert(buffer != NULL);
+-	fread(buffer, 1, statbuf.st_size, fp);
++	if (fread(buffer, 1, statbuf.st_size, fp) != statbuf.st_size) {
++	    perror("fread");
++	    exit(1);
++	}
+ 	fclose(fp);
+ 	get_array(buffer, "key_global", raw_global, SIZE);
+ 	get_array(buffer, "key_public", raw_public, SIZE);
+@@ -1072,7 +1075,10 @@
+ 	}
+ 	buffer = (char*) malloc(statbuf.st_size);
+ 	assert(buffer != NULL);
+-	fread(buffer, 1, statbuf.st_size, fp);
++	if (fread(buffer, 1, statbuf.st_size, fp) != statbuf.st_size) {
++	    perror("fread");
++	    exit(1);
++	}
+ 	fclose(fp);
+ 	key_name = allocbuf();
+ 	client_type = allocbuf();
+--- a/check.c
++++ b/check.c
+@@ -87,7 +87,11 @@
+ 
+   while ((cc = read(sock, buf, BUF_SIZE)) > 0)
+     {
+-      fwrite(buf, cc, 1, stdout);
++      if (fwrite(buf, cc, 1, stdout) != 1) {
++	perror("fwrite");
++	close(sock);
++	terminate(0);
++      }
+     }
+   if (cc < 0)
+     {
+--- a/smessage.c
++++ b/smessage.c
+@@ -458,7 +458,7 @@
+       (void) sprintf(&addrmesg[5], "ALL");
+       break;
+     case MTEAM:
+-      (void) sprintf(&addrmesg[5], teamshort[recip]);
++      (void) sprintf(&addrmesg[5], "%s", teamshort[recip]);
+       break;
+     case MINDIV:
+       if (maskrecip)
+--- a/parsemeta.c
++++ b/parsemeta.c
+@@ -680,9 +680,19 @@
+   if (cache != NULL)
+     {
+ 
+-      fwrite(&statusLevel, sizeof(statusLevel), 1, cache);
+-      fwrite(&num_servers, sizeof(num_servers), 1, cache);
+-      fwrite(serverlist, sizeof(struct servers), num_servers, cache);
++      if (fwrite(&statusLevel, sizeof(statusLevel), 1, cache) != 1 ||
++          fwrite(&num_servers, sizeof(num_servers), 1, cache) != 1 ||
++          fwrite(serverlist, sizeof(struct servers), num_servers, cache) != num_servers) {
++	int xerrno = errno;
++	fclose(cache);
++#ifdef _MSC_VER
++  	_unlink(tmpFileName);
++#else
++    	unlink(tmpFileName);
++#endif
++	errno = xerrno;
++	perror("Could not write to the new cache file");
++      }
+ 
+       fclose(cache);
+ 
+@@ -725,8 +735,8 @@
+     }
+ 
+   /* ignore the cache if user changed statusLevel */
+-  fread(&i, sizeof(i), 1, cache);
+-  if (i != statusLevel)
++  if (fread(&i, sizeof(i), 1, cache) != 1 ||
++      i != statusLevel)
+     {
+       num_servers = 0;
+       fclose(cache);
+@@ -734,9 +744,19 @@
+     }
+ 
+   /* read the server list into memory from the file */
+-  fread(&num_servers, sizeof(num_servers), 1, cache);
++  if (fread(&num_servers, sizeof(num_servers), 1, cache) != 1) {
++    num_servers = 0;
++    fclose(cache);
++    return;
++  }
+   serverlist = (struct servers *) malloc(sizeof(struct servers)*num_servers);
+-  fread(serverlist, sizeof(struct servers), num_servers, cache);
++  if (fread(serverlist, sizeof(struct servers), num_servers, cache) != num_servers) {
++    free(serverlist);
++    serverlist = NULL;
++    num_servers = 0;
++    fclose(cache);
++    return;
++  }
+   fclose(cache);
+ 
+   /* hunt and kill old server lines from cache */
+--- a/short.c
++++ b/short.c
+@@ -934,7 +934,7 @@
+       sprintf(addrbuf + 5, "ALL");
+       break;
+     case MTEAM:
+-      sprintf(addrbuf + 5, teamshort[me->p_team]);
++      sprintf(addrbuf + 5, "%s", teamshort[me->p_team]);
+       break;
+     case MINDIV:
+       /* I know that it's me -> xxx but i copied it straight ... */
+--- a/sound.c
++++ b/sound.c
+@@ -982,7 +982,7 @@
+ 		if (!isDirectory(sounddir)) {
+ 			sounddir = "sounds";
+ 				if (!isDirectory(sounddir)) {
+-					(void) fprintf(stderr, "sound directory missing\n", sounddir);
++					(void) fprintf(stderr, "sound directory %s missing\n", sounddir);
+ 					return;
+ 			}
+ 		}
+--- a/docwin.c
++++ b/docwin.c
+@@ -48,7 +48,7 @@
+   if (!W_IsMapped(docwin))
+     W_MapWindow(docwin);
+ 
+-  sprintf(buf, "---  %s  ---", (char *) query_cowid());
++  snprintf(buf, sizeof(buf), "---  %s  ---", (char *) query_cowid());
+   length = strlen(buf);
+ 
+   /* using GWINSIDE instead of TWINSIDE because with SMALL_SCREEN defined it
+@@ -57,7 +57,7 @@
+   center = GWINSIDE / 2 - (length * W_Textwidth) / 2;
+   W_WriteText(docwin, center, W_Textheight, textColor,
+ 	      buf, length, W_BoldFont);
+-  sprintf(buf, cbugs);
++  snprintf(buf, sizeof(buf), "%s", cbugs);
+   length = strlen(buf);
+   center = GWINSIDE / 2 - (length * W_Textwidth) / 2;
+   W_WriteText(docwin, center, 3 * W_Textheight, textColor,
+@@ -140,7 +140,7 @@
+ 
+   if (temp == NULL)
+     { /* malloc error checking -- 10/30/92 EM */
+-      printf(malloc_fail);
++      printf("%s", malloc_fail);
+       return;
+     }
+ 
+@@ -183,7 +183,7 @@
+ 
+       if (temp->next == NULL)
+ 	{ /* malloc error checking -- 10/30/92 EM */
+-	  printf(malloc_fail);
++	  printf("%s", malloc_fail);
+ 	  return;
+ 	}
+ 
+@@ -215,12 +215,12 @@
+   if (!W_IsMapped(xtrekrcwin))
+     W_MapWindow(xtrekrcwin);
+ 
+-  sprintf(buf, "---  %s  ---", (char *) query_cowid());
++  snprintf(buf, sizeof(buf), "---  %s  ---", (char *) query_cowid());
+   length = strlen(buf);
+   center = GWINSIDE / 2 - (length * W_Textwidth) / 2;
+   W_WriteText(xtrekrcwin, center, W_Textheight, textColor,
+ 	      buf, length, W_BoldFont);
+-  sprintf(buf, cbugs);
++  snprintf(buf, sizeof(buf), "%s", cbugs);
+   length = strlen(buf);
+   center = GWINSIDE / 2 - (length * W_Textwidth) / 2;
+   W_WriteText(xtrekrcwin, center, 3 * W_Textheight, textColor,
+@@ -306,7 +306,7 @@
+ 
+   if (temp == NULL)
+     { /* malloc error checking -- 10/30/92 EM */
+-      printf(malloc_fail);
++      printf("%s", malloc_fail);
+       return;
+     }
+ 
+@@ -337,7 +337,7 @@
+ 
+       if (temp->next == NULL)
+ 	{ /* malloc error checking -- 10/30/92 EM */
+-	  printf(malloc_fail);
++	  printf("%s", malloc_fail);
+ 	  return;
+ 	}
+ 
+--- a/main.c
++++ b/main.c
+@@ -396,8 +396,9 @@
+       if (getdefault("wwwlink") != NULL)
+ 	wwwlink = getdefault("wwwlink");
+ 
+-      sprintf(webcall, wwwlink, url);
+-      system(webcall);
++      snprintf(webcall, sizeof(webcall), wwwlink, url);
++      if (system(webcall) == -1)
++	printf("Running %s for URL %s failed\n", wwwlink, url);
+       url[0] = '\0';
+       exit(0);
+     }

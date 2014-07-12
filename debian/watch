@@ -1,0 +1,3 @@
+version=3
+
+http://www.netrek.org/files/COW/netrek-client-cow-([\d.]+)\.tar\.gz

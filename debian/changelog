@@ -1,0 +1,96 @@
+netrek-client-cow (3.3.0-3) unstable; urgency=low
+
+  * Team upload.
+  * Force --with-gmp, fixes FTBFS on ia64 and sparc.
+
+ -- Evgeni Golov <evgeni@debian.org>  Thu, 23 Jun 2011 12:42:15 +0200
+
+netrek-client-cow (3.3.0-2) unstable; urgency=low
+
+  * Team upload.
+
+  [ Barry deFreese ]
+  * Some packaging changes suggested by upstream.
+    + Update package description.
+    + Update debian/netrek-client-cow.6.
+  * Bump Standards Version to 3.8.3. (No changes needed).
+
+  [ Peter Pentchev ]
+  * Add the 001-configure-gmp-version patch to fix the check for
+    libgmp versions larger than 1.  Closes: #620528
+  * Convert to the 3.0 (quilt) source format:
+    - add the 002-make-reallyclean patch to really clean up after
+      the build.
+    - drop the build dependency on quilt
+    - drop the quilt invocations from the rules file
+  * Add the 003-typos patch to fix some typographical and grammatical
+    errors.
+  * Bump Standards-Version to 3.9.2 with no changes.
+  * Let the build system honor CPPFLAGS, CFLAGS and LDFLAGS
+    - export them in the rules file
+    - add the 004-honor-flags patch
+  * Minimize the rules file using debhelper override targets.
+  * Use dh --with autotools_dev to handle config.guess and config.sub.
+  * Bump the debhelper compatibility level to 8 with no changes.
+  * Depend on libgmp-dev instead of libgmp3-dev.
+  * Use dpkg-buildflags to obtain the default values for CPPFLAGS,
+    CFLAGS and LDFLAGS.
+  * Pass --as-needed to the linker to avoid unneeded dependencies.
+  * Convert the copyright file to the latest DEP 5 candidate format
+    and add my copyright notice.
+  * Build with -Werror if the "werror" build option is specified.
+  * Harden the build unless the "nohardening" build option is specified.
+  * Remove the 001_desktop_file patch that has not been applied ever
+    since Barry deFreese's fix in rev. 9851.
+
+  [ Evgeni Golov ]
+  * Fix some typos in the Description.
+    Closes: #624019
+
+ -- Peter Pentchev <roam@ringlet.net>  Wed, 11 May 2011 14:13:39 +0300
+
+netrek-client-cow (3.3.0-1) unstable; urgency=low
+
+  [ Barry deFreese ]
+  * New upstream release.
+  * Install upstream desktop file. (Closes: #522587).
+  * Add quilt patch system.
+
+ -- Barry deFreese <bdefreese@debian.org>  Tue, 16 Jun 2009 15:27:20 -0400
+
+netrek-client-cow (3.2.10-1) unstable; urgency=low
+
+  [ Barry deFreese ]
+  * Move maintainer to Debian Games Team. (It should have been anyway).
+  * New upstream release.
+    + Fixes pointer coversions and other warnings. (Closes: #512463).
+  * Change make install call. Remove BINDIR, add prefix=/usr.
+  * Minor copyright syntax changes.
+  * Bump Standards Version to 3.8.1. (No changes needed).
+
+ -- Barry deFreese <bdefreese@debian.org>  Wed, 18 Mar 2009 10:17:31 -0400
+
+netrek-client-cow (3.2.9-1) unstable; urgency=low
+
+  * New upstream release.
+    + Resolve license issue.
+
+ -- Barry deFreese <bdefreese@debian.org>  Tue, 13 Jan 2009 14:30:56 -0500
+
+netrek-client-cow (3.2.8.dak-1) unstable; urgency=low
+
+  [ Barry deFreese ]
+  * Move from section nonfree/x11 to proper games.
+    + Should have never been in nonfree.
+    + Repack orig.tar.gz to give new upstream version.
+  * Add VCS tags.
+  * Clean up long package description.
+
+ -- Barry deFreese <bdefreese@debian.org>  Tue, 23 Dec 2008 11:29:24 -0500
+
+netrek-client-cow (3.2.8-1) unstable; urgency=low
+
+  * Initial release (Closes: #500630).
+
+ -- Barry deFreese <bdefreese@debian.org>  Fri, 26 Sep 2008 21:44:49 -0400
+
